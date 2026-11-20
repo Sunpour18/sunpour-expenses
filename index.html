@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Sunpour Expenses</title>
+  <meta name="description" content="Office expense and cash advance tracker for Sunpour staff">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#f5f6f8" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141415" media="(prefers-color-scheme: dark)">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Expenses">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="bg" aria-hidden="true"><i class="b1"></i><i class="b2"></i><i class="b3"></i></div>
+  <main id="app"></main>
+  <nav id="nav" hidden></nav>
+  <button id="sync" hidden></button>
+  <div id="sheet" hidden></div>
+  <div id="toasts" aria-live="polite"></div>
+  <script src="config.js"></script>
+  <script src="mock.js"></script>
+  <script src="charts.js"></script>
+  <script src="payroll.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
