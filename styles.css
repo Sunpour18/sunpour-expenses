@@ -238,11 +238,10 @@ h3 { font-size: 16px; font-weight: 600; }
 /* hero balance */
 .hero { border-radius: 20px; padding: 24px 24px 20px; position: relative; overflow: hidden; }
 .hero { background: linear-gradient(160deg, var(--brand), var(--brand-2)); color: var(--on-brand); border-color: transparent; }
-/* signature: the slanted panel tiles from the Sunpour mark */
-.hero::before { content: ""; position: absolute; right: 20px; top: 20px; width: 44px; height: 28px; pointer-events: none; opacity: 0.22;
-  background: linear-gradient(#fff, #fff) 0 0 / 12px 12px no-repeat, linear-gradient(#fff, #fff) 16px 0 / 12px 12px no-repeat, linear-gradient(#fff, #fff) 32px 0 / 12px 12px no-repeat,
-              linear-gradient(#fff, #fff) 0 16px / 12px 12px no-repeat, linear-gradient(#fff, #fff) 16px 16px / 12px 12px no-repeat;
-  transform: skewX(-16deg); }
+/* the official Sunpour mark (brand/sunpour-mark.png, all ten tiles) as a faint watermark on the navy card */
+.hero::before { content: ""; position: absolute; right: 20px; top: 20px; width: 52px; height: 51px; pointer-events: none;
+  background: rgba(255, 255, 255, 0.24);
+  -webkit-mask: url("brand/sunpour-mark.png") center / contain no-repeat; mask: url("brand/sunpour-mark.png") center / contain no-repeat; }
 .hero .label { font-size: 14px; font-weight: 500; color: var(--on-brand-2); }
 .hero-num { font-size: 44px; font-weight: 500; letter-spacing: -0.02em; line-height: 1.1; margin-top: 4px; font-variant-numeric: tabular-nums; }
 .hero-sub { font-size: 14px; font-weight: 500; margin-top: 4px; }
