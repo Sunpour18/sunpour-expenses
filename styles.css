@@ -227,6 +227,8 @@ h3 { font-size: 16px; font-weight: 600; }
 .login .btn.ghost { margin-top: 8px; }
 .pin::placeholder { letter-spacing: 0.02em; font-size: 18px; }
 .file-btn { position: relative; overflow: hidden; }
+.import-card { flex-direction: row; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.import-card > div { flex: 1 1 280px; }
 .file-btn input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
 
 /* hero balance */

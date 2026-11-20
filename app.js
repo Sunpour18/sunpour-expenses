@@ -641,6 +641,9 @@
     return `
       <header class="page-head"><div><p class="muted">Admin</p><h1>Dashboard</h1></div>
         <button class="btn primary" data-act="add" data-type="received">${icon('plus')}Give money</button></header>
+      ${!S.admin.transactions.length ? `<section class="card glass import-card"><div><h3>Bring in your old spreadsheet entries</h3>
+        <p class="muted small">One time only. Choose <b>seed.json</b> from the office-expenses → import folder on your Mac (116 entries from Oct–Nov). Entries already imported are skipped.</p></div>
+        <label class="btn primary file-btn">${icon('up')}Choose seed.json<input type="file" accept=".json,application/json" data-act-file="import"></label></section>` : ''}
       ${periodBar()}
       <section class="kpis">
         ${kpi('Money given', money(sm.tot.received), `to staff, ${esc(r.label.toLowerCase() === 'all time' ? 'all time' : 'this period')}`)}
