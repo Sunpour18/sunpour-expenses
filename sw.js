@@ -1,7 +1,7 @@
 /* Offline support: the app shell loads even with no internet.
    Bump CACHE when you change any app file so phones pick up the update. */
-const CACHE = 'spx-v1.4.2';
-const SHELL = ['./', 'index.html', 'styles.css', 'app.js', 'charts.js', 'payroll.js', 'config.js', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png', 'brand/sunpour-logo.png', 'brand/sunpour-mark.png'];
+const CACHE = 'spx-v1.4.3';
+const SHELL = ['./', 'index.html', 'styles.css', 'app.js', 'charts.js', 'payroll.js', 'i18n.js', 'config.js', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png', 'brand/sunpour-logo.png', 'brand/sunpour-mark.png'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));

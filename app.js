@@ -34,15 +34,33 @@
   const monthStart = (s) => s.slice(0, 8) + '01';
   const monthEnd = (s) => { const d = parse(monthStart(s)); d.setMonth(d.getMonth() + 1); d.setDate(0); return iso(d); };
   const addMonths = (s, n) => { const d = parse(monthStart(s)); d.setMonth(d.getMonth() + n); return iso(d); };
-  const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  const dShort = (s) => { const d = parse(s); return `${d.getDate()} ${MON[d.getMonth()]}`; };
-  const dLong = (s) => { const d = parse(s); return `${DOW[d.getDay()]}, ${d.getDate()} ${MON[d.getMonth()]} ${d.getFullYear()}`; };
-  const monthName = (s) => { const d = parse(s); return `${['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'][d.getMonth()]} ${d.getFullYear()}`; };
+  /* language: each staff profile picks English or Hindi on its own (admin and HR screens stay English) */
+  const store0 = { get(k, d) { try { const v = localStorage.getItem('spx.' + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } } };
+  let LANG_ME = null; // set from S.me once state exists
+  const isStaff = (me) => me && me !== 'admin' && me !== 'hr';
+  const lang = () => (isStaff(LANG_ME) ? store0.get('lang.' + LANG_ME, 'en') : LANG_ME ? 'en' : store0.get('lang.device', 'en'));
+  /** translate a staff-screen string; {name} parts are filled from vars */
+  function tr(en, vars) {
+    let out = lang() === 'hi' && window.SPX_HI && window.SPX_HI[en] ? window.SPX_HI[en] : en;
+    if (vars) out = out.replace(/\{(\w+)\}/g, (m, k) => (vars[k] != null ? vars[k] : m));
+    return out;
+  }
+  const MON_EN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const DOW_EN = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const MONTHS_EN = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  const MON_HI = ['जन', 'फ़र', 'मार्च', 'अप्रैल', 'मई', 'जून', 'जुल', 'अग', 'सित', 'अक्टू', 'नव', 'दिस'];
+  const DOW_HI = ['रवि', 'सोम', 'मंगल', 'बुध', 'गुरु', 'शुक्र', 'शनि'];
+  const MONTHS_HI = ['जनवरी', 'फ़रवरी', 'मार्च', 'अप्रैल', 'मई', 'जून', 'जुलाई', 'अगस्त', 'सितंबर', 'अक्टूबर', 'नवंबर', 'दिसंबर'];
+  const MON = MON_EN, DOW = DOW_EN; // English names used by admin charts and tables
+  const monA = () => (lang() === 'hi' ? MON_HI : MON_EN);
+  const dowA = () => (lang() === 'hi' ? DOW_HI : DOW_EN);
+  const dShort = (s) => { const d = parse(s); return `${d.getDate()} ${monA()[d.getMonth()]}`; };
+  const dLong = (s) => { const d = parse(s); return `${dowA()[d.getDay()]}, ${d.getDate()} ${monA()[d.getMonth()]} ${d.getFullYear()}`; };
+  const monthName = (s) => { const d = parse(s); return `${(lang() === 'hi' ? MONTHS_HI : MONTHS_EN)[d.getMonth()]} ${d.getFullYear()}`; };
   function dayLabel(s) {
     const t = today();
-    if (s === t) return 'Today';
-    if (s === addDays(t, -1)) return 'Yesterday';
+    if (s === t) return tr('Today');
+    if (s === addDays(t, -1)) return tr('Yesterday');
     return dLong(s);
   }
   const weekLabel = (ws) => { const we = addDays(ws, 6); return `${dShort(ws)} – ${dShort(we)}`; };
@@ -134,11 +152,18 @@
     lastError: '',
   };
 
+  LANG_ME = S.me;
   const people = () => (S.admin ? S.admin.people : S.config ? S.config.people : []);
   const cats = () => (S.admin ? S.admin.categories : S.config ? S.config.categories : []);
   const personName = (id) => (people().find((p) => p.id === id) || { name: id === 'admin' ? 'Admin' : id === 'import' ? 'Old sheet' : 'Unknown' }).name;
   const firstName = (id) => personName(id).split(' ')[0];
-  const catOf = (id) => cats().find((c) => c.id === id) || { id, name: id || 'Uncategorised', icon: 'dots' };
+  const catOf0 = (id) => cats().find((c) => c.id === id) || { id, name: id || 'Uncategorised', icon: 'dots' };
+  /** category in the viewer's language: default categories get their Hindi name unless the admin renamed them */
+  const catOf = (id) => {
+    const c = catOf0(id);
+    if (lang() === 'hi' && window.SPX_HI_CATS && SPX_HI_CATS[c.id] && (!SPX_HI_CAT_EN[c.id] || SPX_HI_CAT_EN[c.id] === c.name)) return { ...c, name: SPX_HI_CATS[c.id] };
+    return c;
+  };
   const personColor = (id) => SERIES[Math.max(0, people().findIndex((p) => p.id === id)) % SERIES.length];
   const catColor = (id) => (CAT_SLOT[id] != null ? SERIES[CAT_SLOT[id]] : OTHER);
 
@@ -168,7 +193,7 @@
   async function loadMine() {
     if (!S.me || S.me === 'admin') return;
     const r = await api('list', { person: S.me });
-    S.mine = r.transactions;
+    S.mine = r.transactions; S.mineLoaded = true;
     store.set('mine', S.mine);
   }
 
@@ -325,53 +350,53 @@
     };
     const admin = S.me === 'admin';
     const activePeople = people().filter((p) => p.active || p.id === t.person || p.id === t.to);
-    const title = isEdit ? 'Edit entry' : t.type === 'received' && admin ? 'Give money' : 'New entry';
+    const title = isEdit ? tr('Edit entry') : t.type === 'received' && admin ? 'Give money' : tr('New entry');
 
     const typeSeg = `<div class="seg3" role="tablist" data-field="type">
-        ${[['expense', 'Expense'], ['received', admin ? 'Give money' : 'Received'], ['transfer', admin ? 'Transfer' : 'To colleague']]
+        ${[['expense', tr('Expense')], ['received', admin ? 'Give money' : tr('Received')], ['transfer', admin ? 'Transfer' : tr('To colleague')]]
           .map(([v, l]) => `<button type="button" role="tab" class="${t.type === v ? 'on' : ''}" data-v="${v}">${l}</button>`).join('')}
       </div>`;
 
     const personPick = admin ? `<div class="field"><label>${t.type === 'received' ? 'Give to' : t.type === 'transfer' ? 'From' : 'Spent by'}</label>
       <div class="chips" data-field="person">${activePeople.map((p) => `<button type="button" class="chip ${t.person === p.id ? 'on' : ''}" data-v="${p.id}">${icon('user')}${esc(p.name)}</button>`).join('')}</div></div>` : '';
 
-    const catGrid = `<div class="field" data-show="expense"><label>Category</label>
+    const catGrid = `<div class="field" data-show="expense"><label>${tr('Category')}</label>
       <div class="cat-grid" data-field="category">${cats().filter((c) => c.active || c.id === t.category).map((c) => `
         <button type="button" class="cat ${t.category === c.id ? 'on' : ''}" data-v="${c.id}" style="--c:${catColor(c.id)}">
-          <span class="cat-ic">${icon(c.icon)}</span><span>${esc(c.name)}</span></button>`).join('')}
+          <span class="cat-ic">${icon(c.icon)}</span><span>${esc(catOf(c.id).name)}</span></button>`).join('')}
       </div></div>`;
 
-    const toPick = `<div class="field" data-show="transfer"><label>${admin ? 'To' : 'Gave it to'}</label>
+    const toPick = `<div class="field" data-show="transfer"><label>${admin ? 'To' : tr('Gave it to')}</label>
       <div class="chips" data-field="to">${activePeople.filter((p) => p.id !== t.person).map((p) => `<button type="button" class="chip ${t.to === p.id ? 'on' : ''}" data-v="${p.id}">${icon('user')}${esc(p.name)}</button>`).join('')}</div></div>`;
 
     const y = addDays(today(), -1);
-    const dateRow = `<div class="field"><label>Date</label><div class="chips date-chips" data-field="datechip">
-        <button type="button" class="chip ${t.date === today() ? 'on' : ''}" data-v="${today()}">Today</button>
-        <button type="button" class="chip ${t.date === y ? 'on' : ''}" data-v="${y}">Yesterday</button>
-        <label class="chip date-pick ${t.date !== today() && t.date !== y ? 'on' : ''}">${icon('calendar')}<span class="date-text">${t.date !== today() && t.date !== y ? dShort(t.date) : 'Pick date'}</span>
+    const dateRow = `<div class="field"><label>${tr('Date')}</label><div class="chips date-chips" data-field="datechip">
+        <button type="button" class="chip ${t.date === today() ? 'on' : ''}" data-v="${today()}">${tr('Today')}</button>
+        <button type="button" class="chip ${t.date === y ? 'on' : ''}" data-v="${y}">${tr('Yesterday')}</button>
+        <label class="chip date-pick ${t.date !== today() && t.date !== y ? 'on' : ''}">${icon('calendar')}<span class="date-text">${t.date !== today() && t.date !== y ? dShort(t.date) : tr('Pick date')}</span>
           <input type="date" name="date" value="${t.date}" max="${today()}"></label>
       </div></div>`;
 
     const html = `<form class="entry" novalidate>
-      <div class="sheet-head"><button type="button" class="link" data-act="close-sheet">Cancel</button><h2>${title}</h2>
-        <button type="submit" class="link strong">Save</button></div>
+      <div class="sheet-head"><button type="button" class="link" data-act="close-sheet">${tr('Cancel')}</button><h2>${title}</h2>
+        <button type="submit" class="link strong">${tr('Save')}</button></div>
       ${typeSeg}
       <div class="amount-wrap"><span class="cur">₹</span><input class="amount" name="amount" inputmode="decimal" autocomplete="off" placeholder="0" value="${t.amount || ''}" aria-label="Amount in rupees"></div>
       <p class="hint" data-hint></p>
       ${personPick}
       ${catGrid}
       ${toPick}
-      <div class="field"><label>Paid by</label><div class="seg2" data-field="mode">
-        <button type="button" class="${t.mode === 'Cash' ? 'on' : ''}" data-v="Cash">${icon('cash')}Cash</button>
-        <button type="button" class="${t.mode === 'UPI' ? 'on' : ''}" data-v="UPI">${icon('upi')}UPI / online</button></div></div>
+      <div class="field"><label>${tr('Paid by')}</label><div class="seg2" data-field="mode">
+        <button type="button" class="${t.mode === 'Cash' ? 'on' : ''}" data-v="Cash">${icon('cash')}${tr('Cash')}</button>
+        <button type="button" class="${t.mode === 'UPI' ? 'on' : ''}" data-v="UPI">${icon('upi')}${tr('UPI / online')}</button></div></div>
       ${dateRow}
-      <div class="field"><label for="note">Note <span class="opt">optional</span></label>
-        <input id="note" name="note" class="input" maxlength="300" placeholder="${t.type === 'expense' ? 'e.g. 2 bottles of water for site' : 'e.g. advance for the week'}" value="${esc(t.note)}"></div>
+      <div class="field"><label for="note">${tr('Note')} <span class="opt">${tr('optional')}</span></label>
+        <input id="note" name="note" class="input" maxlength="300" placeholder="${t.type === 'expense' ? tr('e.g. 2 bottles of water for site') : tr('e.g. advance for the week')}" value="${esc(t.note)}"></div>
       ${isEdit && t.flag && admin ? `<div class="flag-box">${icon('flag')}<div><b>Needs review</b><p>${esc(t.flag)}</p>
           <button type="button" class="btn small" data-act="clear-flag">Mark as reviewed</button></div></div>` : ''}
       <p class="form-error" role="alert"></p>
-      <button type="submit" class="btn primary big">${isEdit ? 'Save changes' : 'Save entry'}</button>
-      ${isEdit ? `<button type="button" class="btn danger-ghost" data-act="delete-entry">${icon('trash')}Delete entry</button>` : ''}
+      <button type="submit" class="btn primary big">${isEdit ? tr('Save changes') : tr('Save entry')}</button>
+      ${isEdit ? `<button type="button" class="btn danger-ghost" data-act="delete-entry">${icon('trash')}${tr('Delete entry')}</button>` : ''}
     </form>`;
 
     openSheet(html, {
@@ -381,8 +406,8 @@
           $$('[data-show]', form).forEach((el) => (el.hidden = el.dataset.show !== t.type));
           const hint = $('[data-hint]', form);
           hint.textContent = t.type === 'received'
-            ? (admin ? `Adds to ${firstName(t.person)}'s cash in hand.` : 'Money you got from the office for expenses.')
-            : t.type === 'transfer' ? 'Moves money between staff. It is not counted as an office expense.' : '';
+            ? (admin ? `Adds to ${firstName(t.person)}'s cash in hand.` : tr('Money you got from the office for expenses.'))
+            : t.type === 'transfer' ? tr('Moves money between staff. It is not counted as an office expense.') : '';
           const tp = $('[data-field="to"]', form);
           tp.innerHTML = activePeople.filter((p) => p.id !== t.person).map((p) => `<button type="button" class="chip ${t.to === p.id ? 'on' : ''}" data-v="${p.id}">${icon('user')}${esc(p.name)}</button>`).join('');
           if (t.to === t.person) t.to = '';
@@ -395,11 +420,11 @@
           if (!b) return;
           const f = b.parentElement.dataset.field;
           if (!f) return;
-          if (f === 'datechip') { t.date = b.dataset.v; $('input[name=date]', form).value = t.date; $('.date-text', form).textContent = 'Pick date'; $('.date-pick', form).classList.remove('on'); }
+          if (f === 'datechip') { t.date = b.dataset.v; $('input[name=date]', form).value = t.date; $('.date-text', form).textContent = tr('Pick date'); $('.date-pick', form).classList.remove('on'); }
           else t[f] = b.dataset.v;
           $$('button[data-v]', b.parentElement).forEach((x) => x.classList.toggle('on', x === b));
           if (f === 'type' || f === 'person') sync();
-          if (f === 'type') { $('h2', form).textContent = isEdit ? 'Edit entry' : t.type === 'received' && admin ? 'Give money' : 'New entry'; }
+          if (f === 'type') { $('h2', form).textContent = isEdit ? tr('Edit entry') : t.type === 'received' && admin ? 'Give money' : tr('New entry'); }
         });
         $('input[name=date]', form).addEventListener('change', (e) => {
           if (!e.target.value) return;
@@ -423,9 +448,9 @@
           const a = e.target.closest('[data-act]');
           if (!a) return;
           if (a.dataset.act === 'delete-entry') {
-            if (!confirm('Delete this entry? The admin can still see it in the change log.')) return;
+            if (!confirm(tr('Delete this entry? The admin can still see it in the change log.'))) return;
             queue({ kind: 'delete', id: t.id });
-            closeSheet(); toast('Entry deleted'); afterChange();
+            closeSheet(); toast(tr('Entry deleted')); afterChange();
           }
           if (a.dataset.act === 'clear-flag') {
             t.flag = '';
@@ -441,13 +466,13 @@
           t.amount = $('.amount', form).value;
           const a = Number(t.amount);
           const fail = (m) => { err.textContent = m; err.classList.remove('shake'); void err.offsetWidth; err.classList.add('shake'); err.scrollIntoView({ block: 'center', behavior: 'smooth' }); };
-          if (!(a > 0)) return fail('Enter the amount.');
-          if (a > 1000000) return fail('That amount looks too large. Check the number.');
-          if (!t.person) return fail('Pick a person.');
-          if (t.type === 'expense' && !t.category) return fail('Pick a category.');
-          if (t.type === 'transfer' && !t.to) return fail('Pick who got the money.');
-          if (!t.mode) return fail('Pick Cash or UPI.');
-          if (t.date > today()) return fail('Date can’t be in the future.');
+          if (!(a > 0)) return fail(tr('Enter the amount.'));
+          if (a > 1000000) return fail(tr('That amount looks too large. Check the number.'));
+          if (!t.person) return fail(tr('Pick a person.'));
+          if (t.type === 'expense' && !t.category) return fail(tr('Pick a category.'));
+          if (t.type === 'transfer' && !t.to) return fail(tr('Pick who got the money.'));
+          if (!t.mode) return fail(tr('Pick Cash or UPI.'));
+          if (t.date > today()) return fail(tr('Date can’t be in the future.'));
           const clean = { id: t.id, date: t.date, person: t.person, type: t.type, category: t.type === 'expense' ? t.category : '', amount: Math.round(a * 100) / 100, mode: t.mode, note: t.note, to: t.type === 'transfer' ? t.to : '', flag: t.flag || '', createdAt: t.createdAt || new Date().toISOString(), by: t.by || S.me };
           // duplicate guard
           if (!isEdit && !form.dataset.dupeOk) {
@@ -455,14 +480,15 @@
             const dupe = pool.find((x) => x.id !== clean.id && x.type === clean.type && x.person === clean.person && x.date === clean.date && paise(x.amount) === paise(clean.amount) && (x.category || '') === clean.category);
             if (dupe) {
               form.dataset.dupeOk = '1';
-              const who = dupe.by === 'admin' ? 'the admin' : dupe.by === S.me ? 'you' : firstName(dupe.by);
-              return fail(`${money(paise(clean.amount))} on ${dShort(clean.date)} was already entered by ${who}. Tap Save again if this is a separate entry.`);
+              const who = dupe.by === 'admin' ? tr('the admin') : dupe.by === S.me ? tr('you') : firstName(dupe.by);
+              return fail(tr('{amt} on {date} was already entered by {who}. Tap Save again if this is a separate entry.', { amt: money(paise(clean.amount)), date: dShort(clean.date), who }));
             }
           }
           store.set('lastMode', clean.mode);
           queue({ kind: 'save', id: clean.id, txn: clean });
           closeSheet();
-          toast(isEdit ? 'Changes saved' : clean.type === 'expense' ? `${money(paise(clean.amount))} expense saved` : clean.type === 'received' ? `${money(paise(clean.amount))} ${admin ? 'given to ' + firstName(clean.person) : 'received'}` : `${money(paise(clean.amount))} transfer saved`);
+          const amtS = money(paise(clean.amount));
+          toast(isEdit ? tr('Changes saved') : clean.type === 'expense' ? tr('{amt} expense saved', { amt: amtS }) : clean.type === 'received' ? (admin ? `${amtS} given to ${firstName(clean.person)}` : tr('{amt} received', { amt: amtS })) : tr('{amt} transfer saved', { amt: amtS }));
           afterChange();
         }
       },
@@ -488,23 +514,23 @@
     const viewer = S.me;
     let title, ic, cls, amt;
     if (t.type === 'expense') { title = c.name; ic = icon(c.icon); cls = 'exp'; amt = money(-a); }
-    else if (t.type === 'received') { title = viewer === 'admin' ? `Given to ${firstName(t.person)}` : 'Money received'; ic = icon('down'); cls = 'in'; amt = money(a, { sign: true }); }
+    else if (t.type === 'received') { title = viewer === 'admin' ? `Given to ${firstName(t.person)}` : tr('Money received'); ic = icon('down'); cls = 'in'; amt = money(a, { sign: true }); }
     else {
       const outgoing = viewer === 'admin' ? true : t.person === viewer;
-      title = viewer === 'admin' ? `${firstName(t.person)} → ${firstName(t.to)}` : outgoing ? `Gave to ${firstName(t.to)}` : `From ${firstName(t.person)}`;
+      title = viewer === 'admin' ? `${firstName(t.person)} → ${firstName(t.to)}` : outgoing ? tr('Gave to {name}', { name: firstName(t.to) }) : tr('From {name}', { name: firstName(t.person) });
       ic = icon('swap'); cls = 'tr'; amt = viewer === 'admin' ? money(a) : outgoing ? money(-a) : money(a, { sign: true });
     }
-    const sub = [showPerson && t.type === 'expense' ? firstName(t.person) : '', t.note, t.mode === 'UPI' ? 'UPI' : t.mode === 'Cash' ? 'Cash' : ''].filter(Boolean).map(esc).join(' · ');
+    const sub = [showPerson && t.type === 'expense' ? firstName(t.person) : '', t.note, t.mode === 'UPI' ? 'UPI' : t.mode === 'Cash' ? tr('Cash') : ''].filter(Boolean).map(esc).join(' · ');
     const canEdit = viewer === 'admin' || (t.by !== 'admin' && (t.person === viewer || t.by === viewer));
     return `<button class="tx ${cls}${t.deleted ? ' deleted' : ''}" ${canEdit && !t.deleted ? `data-act="edit" data-id="${esc(t.id)}"` : 'disabled'} style="--c:${t.type === 'expense' ? catColor(t.category) : ''}">
       <span class="tx-ic">${ic}</span>
-      <span class="tx-main"><span class="tx-title">${esc(title)}${t.flag && viewer === 'admin' ? ` <span class="pill warn">Review</span>` : ''}${t._pending ? ' <span class="pill">Syncing</span>' : ''}${t.deleted ? ' <span class="pill">Deleted</span>' : ''}</span>
+      <span class="tx-main"><span class="tx-title">${esc(title)}${t.flag && viewer === 'admin' ? ` <span class="pill warn">Review</span>` : ''}${t._pending ? ` <span class="pill">${tr('Syncing')}</span>` : ''}${t.deleted ? ' <span class="pill">Deleted</span>' : ''}</span>
         <span class="tx-sub">${sub || '&nbsp;'}</span></span>
       <span class="tx-amt">${amt}</span></button>`;
   }
 
   function groupedList(txns, opts = {}) {
-    if (!txns.length) return `<div class="empty">${icon('list')}<p>${opts.empty || 'No entries yet.'}</p></div>`;
+    if (!txns.length) return `<div class="empty">${icon('list')}<p>${opts.empty || tr('No entries yet.')}</p></div>`;
     const sorted = [...txns].sort((a, b) => b.date.localeCompare(a.date) || String(b.createdAt).localeCompare(String(a.createdAt)));
     let html = '', cur = null, buf = [], dayTotal = 0;
     const flushDay = () => {
@@ -521,9 +547,9 @@
   }
 
   function balanceWords(b, name) {
-    if (b > 0) return { tone: 'pos', text: `${name ? name + ' has' : 'You have'} ${money(b)} of office cash` };
-    if (b < 0) return { tone: 'neg', text: `Office owes ${name ? name : 'you'} ${money(-b)}` };
-    return { tone: 'zero', text: 'All settled' };
+    if (b > 0) return { tone: 'pos', text: name ? `${name} has ${money(b)} of office cash` : tr('You have {amt} of office cash', { amt: money(b) }) };
+    if (b < 0) return { tone: 'neg', text: name ? `Office owes ${name} ${money(-b)}` : tr('Office owes you {amt}', { amt: money(-b) }) };
+    return { tone: 'zero', text: name ? 'All settled' : tr('All settled') };
   }
 
   /* ======================= employee views ======================= */
@@ -531,15 +557,15 @@
     const ps = (S.config?.people || []).filter((p) => p.active);
     return `<div class="who">
       ${logoFull('big')}
-      <h1>Who’s using this phone?</h1>
-      <p class="muted">You only choose once. You can change it later.</p>
+      <h1>${tr('Who’s using this phone?')}</h1>
+      <p class="muted">${tr('You only choose once. You can change it later.')}</p>
       <div class="who-list">
         ${ps.map((p, i) => `<button class="glass who-btn" data-act="pick-me" data-id="${p.id}"><span class="avatar" style="--c:${SERIES[i % SERIES.length]}">${esc(p.name[0])}</span><span>${esc(p.name)}</span>${icon('right')}</button>`).join('')}
-        <button class="glass who-btn admin" data-act="pick-me" data-id="admin"><span class="avatar">${icon('lock')}</span><span>I’m the admin</span>${icon('right')}</button>
+        <button class="glass who-btn admin" data-act="pick-me" data-id="admin"><span class="avatar">${icon('lock')}</span><span>${tr('I’m the admin')}</span>${icon('right')}</button>
         <button class="glass who-btn" data-act="pick-me" data-id="hr"><span class="avatar" style="--c:var(--s7)">${icon('users')}</span><span>HR</span>${icon('right')}</button>
       </div>
-      ${!ps.length ? `<p class="form-error">${S.lastError ? esc(S.lastError) : 'Loading…'}</p>` : ''}
-      <div class="who-theme">${themeSeg()}</div>
+      ${!ps.length ? `<p class="form-error">${S.lastError ? esc(S.lastError) : tr('Loading…')}</p>` : ''}
+      <div class="who-theme">${langSeg()}${themeSeg()}</div>
     </div>`;
   }
 
@@ -554,31 +580,31 @@
     const maxCat = topCats[0]?.[1] || 1;
     const recent = tx.filter((t) => t.date >= addDays(today(), -6));
     return `
-      <div class="topbar">${logoFull()}<div class="topbar-actions">${themeButton()}<button class="icon-btn glass" data-act="switch-user" aria-label="Switch user">${icon('user')}</button></div></div>
-      <header class="hello"><div><p class="muted">${esc(personName(S.me))} · ${dLong(today())}</p><h1>Today</h1></div></header>
+      <div class="topbar">${logoFull()}<div class="topbar-actions">${refreshButton()}${langButton()}${themeButton()}<button class="icon-btn glass" data-act="switch-user" aria-label="${tr('Switch user')}">${icon('user')}</button></div></div>
+      <header class="hello"><div><p class="muted">${esc(personName(S.me))} · ${dLong(today())}</p><h1>${tr('Today')}</h1></div></header>
       ${attendanceCard()}
       <section class="balance glass hero ${bw.tone}">
-        <p class="label">Cash in hand</p>
-        <p class="hero-num">${money(bal)}</p>
-        <p class="hero-sub">${bw.text}</p>
+        <p class="label">${tr('Cash in hand')}</p>
+        <p class="hero-num">${!S.mineLoaded && !S.mine.length ? '…' : money(bal)}</p>
+        <p class="hero-sub">${!S.mineLoaded && !S.mine.length ? tr('Loading…') : bw.text}</p>
         <div class="hero-stats">
-          <div><span>Spent this week</span><b>${money(me.spent)}</b></div>
-          <div><span>Received this week</span><b>${money(me.received + me.tin)}</b></div>
+          <div><span>${tr('Spent this week')}</span><b>${money(me.spent)}</b></div>
+          <div><span>${tr('Received this week')}</span><b>${money(me.received + me.tin)}</b></div>
         </div>
       </section>
       <div class="quick">
-        <button class="btn primary big" data-act="add" data-type="expense">${icon('plus')}Add expense</button>
+        <button class="btn primary big" data-act="add" data-type="expense">${icon('plus')}${tr('Add expense')}</button>
         <div class="quick-2">
-          <button class="btn glass" data-act="add" data-type="received">${icon('down')}Money received</button>
-          <button class="btn glass" data-act="add" data-type="transfer">${icon('swap')}Gave to staff</button>
+          <button class="btn glass" data-act="add" data-type="received">${icon('down')}${tr('Money received')}</button>
+          <button class="btn glass" data-act="add" data-type="transfer">${icon('swap')}${tr('Gave to staff')}</button>
         </div>
       </div>
-      ${topCats.length ? `<section class="card glass"><h3>This week by category</h3><div class="mini-bars">${topCats.map(([k, v]) => `
+      ${topCats.length ? `<section class="card glass"><h3>${tr('This week by category')}</h3><div class="mini-bars">${topCats.map(([k, v]) => `
         <div class="mb-row"><span class="mb-ic" style="--c:${catColor(k)}">${icon(catOf(k).icon)}</span><span class="mb-name">${esc(catOf(k).name)}</span>
           <span class="mb-track"><span style="width:${(v / maxCat) * 100}%;background:${catColor(k)}"></span></span><b>${money(v)}</b></div>`).join('')}</div></section>` : ''}
-      <h3 class="section-title">Last 7 days</h3>
-      ${groupedList(recent, { empty: 'Nothing this week yet. Tap “Add expense” to start.' })}
-      <button class="btn ghost wide" data-go="history">See all entries</button>`;
+      <h3 class="section-title">${tr('Last 7 days')}</h3>
+      ${groupedList(recent, { empty: tr('Nothing this week yet. Tap “Add expense” to start.') })}
+      <button class="btn ghost wide" data-go="history">${tr('See all entries')}</button>`;
   }
 
   function viewHistory() {
@@ -587,13 +613,13 @@
     const sel = S.histMonth && months.includes(S.histMonth) ? S.histMonth : months[0] || today().slice(0, 7);
     const inM = tx.filter((t) => t.date.startsWith(sel));
     const s = summarize(tx, sel + '-01', monthEnd(sel + '-01'), [S.me]).per[S.me];
-    return `<header class="page-head"><h1>My entries</h1></header>
+    return `<header class="page-head"><h1>${tr('My entries')}</h1><div class="head-actions">${refreshButton()}</div></header>
       <div class="scroller chips">${months.map((m) => `<button class="chip ${m === sel ? 'on' : ''}" data-act="hist-month" data-m="${m}">${monthName(m + '-01')}</button>`).join('')}</div>
       <section class="stat-row">
-        <div class="stat glass"><span>Opening</span><b>${money(s.opening)}</b></div>
-        <div class="stat glass"><span>Received</span><b class="pos">${money(s.received + s.tin)}</b></div>
-        <div class="stat glass"><span>Spent</span><b>${money(s.spent + s.tout)}</b></div>
-        <div class="stat glass"><span>Closing</span><b>${money(s.closing)}</b></div>
+        <div class="stat glass"><span>${tr('Opening')}</span><b>${money(s.opening)}</b></div>
+        <div class="stat glass"><span>${tr('Received')}</span><b class="pos">${money(s.received + s.tin)}</b></div>
+        <div class="stat glass"><span>${tr('Spent')}</span><b>${money(s.spent + s.tout)}</b></div>
+        <div class="stat glass"><span>${tr('Closing')}</span><b>${money(s.closing)}</b></div>
       </section>
       ${groupedList(inM)}`;
   }
@@ -888,7 +914,7 @@
   }
 
   function loadingView() {
-    return `<div class="empty">${icon('sync', 'spin')}<p>${S.lastError ? esc(S.lastError) : 'Loading…'}</p>${S.lastError ? '<button class="btn glass" data-act="retry">Try again</button>' : ''}</div>`;
+    return `<div class="empty">${icon('sync', 'spin')}<p>${S.lastError ? esc(S.lastError) : tr('Loading…')}</p>${S.lastError ? `<button class="btn glass" data-act="retry">${tr('Try again')}</button>` : ''}</div>`;
   }
 
   /* Sunpour logo: the official navy artwork (brand/), never redrawn or recoloured.
@@ -905,8 +931,24 @@
   }
   function setTheme(t) { S.theme = t; store.set('theme', t); applyTheme(); render(); }
   const themeIcon = () => (THEMES.find((x) => x[0] === S.theme) || THEMES[0])[2];
-  const themeButton = () => `<button class="icon-btn glass" data-act="theme-cycle" aria-label="Theme: ${(THEMES.find((x) => x[0] === S.theme) || THEMES[0])[1]}" title="Theme: ${(THEMES.find((x) => x[0] === S.theme) || THEMES[0])[1]}">${icon(themeIcon())}</button>`;
-  const themeSeg = () => `<div class="seg3 small theme-seg" role="radiogroup" aria-label="Theme">${THEMES.map(([v, l, i]) => `<button class="${S.theme === v ? 'on' : ''}" data-act="theme-set" data-v="${v}" role="radio" aria-checked="${S.theme === v}">${icon(i)}${l}</button>`).join('')}</div>`;
+  const themeButton = () => { const n = tr((THEMES.find((x) => x[0] === S.theme) || THEMES[0])[1]); return `<button class="icon-btn glass" data-act="theme-cycle" aria-label="${tr('Theme: {name}', { name: n })}" title="${tr('Theme: {name}', { name: n })}">${icon(themeIcon())}</button>`; };
+  /* language switch: per staff profile (or per device on the start screen) */
+  const langKey = () => (isStaff(S.me) ? 'lang.' + S.me : 'lang.device');
+  function setLang(l) { store.set(langKey(), l); document.documentElement.lang = l === 'hi' ? 'hi' : 'en'; render(); toast(l === 'hi' ? 'भाषा: हिन्दी' : 'Language: English'); }
+  const langButton = () => `<button class="icon-btn glass lang-btn" data-act="lang-toggle" aria-label="${lang() === 'hi' ? 'Switch to English' : 'हिन्दी में देखें'}" title="${lang() === 'hi' ? 'Switch to English' : 'हिन्दी में देखें'}">${lang() === 'hi' ? 'EN' : 'हि'}</button>`;
+  const langSeg = () => `<div class="seg2 small lang-seg" role="radiogroup" aria-label="Language"><button class="${lang() === 'en' ? 'on' : ''}" data-act="lang-set" data-v="en" role="radio" aria-checked="${lang() === 'en'}">English</button><button class="${lang() === 'hi' ? 'on' : ''}" data-act="lang-set" data-v="hi" role="radio" aria-checked="${lang() === 'hi'}">हिन्दी</button></div>`;
+  /* refresh: pull everyone's latest entries now */
+  const refreshButton = () => `<button class="icon-btn glass" data-act="refresh" aria-label="${tr('Refresh')}" title="${tr('Refresh')}">${icon('sync', S.refreshing ? 'spin' : '')}</button>`;
+  async function doRefresh({ quiet = false } = {}) {
+    if (S.refreshing || !S.me) return;
+    S.refreshing = true; if (!quiet) render();
+    try { await flush(); await refreshData(); S.lastError = ''; if (!quiet) toast(tr('Up to date')); }
+    catch (e) { if (!quiet) toast(navigator.onLine ? e.message : tr('Couldn’t refresh. Check the internet.'), 'warn'); }
+    finally { S.refreshing = false; if (!busy()) render(); }
+  }
+  /** don't redraw under someone's fingers: open form, focused input */
+  const busy = () => !$('#sheet').hidden || (document.activeElement && /INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName));
+  const themeSeg = () => `<div class="seg3 small theme-seg" role="radiogroup" aria-label="Theme">${THEMES.map(([v, l, i]) => `<button class="${S.theme === v ? 'on' : ''}" data-act="theme-set" data-v="${v}" role="radio" aria-checked="${S.theme === v}">${icon(i)}${tr(l)}</button>`).join('')}</div>`;
 
   /* ======================= small admin sheets ======================= */
   function countSheet(pid) {
@@ -1064,19 +1106,20 @@
   }
 
   async function markAtt(person, status) {
-    const name = person === S.me ? 'yourself' : firstName(person);
+    const name = person === S.me ? tr('yourself') : firstName(person);
     const now = new Date().toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' });
-    if (!confirm(`Mark ${name} ${status === 'half' ? 'HALF DAY' : 'present'} for today (${dShort(sToday())}, ${now})?\n\nAfter this, only HR or the admin can change it.`)) return;
+    if (!confirm(tr('Mark {name} {status} for today ({date}, {time})?\n\nAfter this, only HR or the admin can change it.', { name, status: status === 'half' ? tr('HALF DAY') : tr('present'), date: dShort(sToday()), time: now }))) return;
     try {
       await api('markAttendance', { person, status });
-      toast(`${person === S.me ? 'You are' : firstName(person) + ' is'} marked ${status === 'half' ? 'half day' : 'present'}`);
+      const st = status === 'half' ? tr('half day') : tr('present');
+      toast(person === S.me ? tr('You are marked {status}', { status: st }) : tr('{name} is marked {status}', { name: firstName(person), status: st }));
     } catch (e) { toast(e.message, 'warn'); }
     await reloadAttendance().catch(() => {});
     render();
   }
   async function makeHalf(id) {
-    if (!confirm('Change today’s entry to a half day?\n\nYou can’t change it back yourself. Only HR or the admin can.')) return;
-    try { await api('makeHalfDay', { id }); toast('Changed to half day'); } catch (e) { toast(e.message, 'warn'); }
+    if (!confirm(tr('Change today’s entry to a half day?\n\nYou can’t change it back yourself. Only HR or the admin can.'))) return;
+    try { await api('makeHalfDay', { id }); toast(tr('Changed to half day')); } catch (e) { toast(e.message, 'warn'); }
     await reloadAttendance().catch(() => {});
     render();
   }
@@ -1085,27 +1128,27 @@
   function attendanceCard() {
     const a = S.attNow;
     const td = sToday();
-    if (!a) return `<section class="card glass att-card"><header class="card-head"><h3>${icon('check')}Attendance today</h3></header><p class="muted small">${S.online ? 'Loading…' : 'Needs internet to mark attendance.'}</p></section>`;
+    if (!a) return `<section class="card glass att-card"><header class="card-head"><h3>${tr('Attendance')}</h3></header><p class="muted small">${S.online ? tr('Loading…') : tr('Needs internet to mark attendance.')}</p></section>`;
     const todays = a.attendance.filter((x) => x.date === td);
     const ps = people().filter((p) => p.active);
     const me = todays.find((x) => x.person === S.me);
     const row = (p) => {
       const e = todays.find((x) => x.person === p.id);
       const isMe = p.id === S.me;
-      const state = e ? `<span class="att-state ${e.status}">${icon(e.status === 'half' ? 'halfday' : 'check')}${e.status === 'half' ? 'Half day' : 'Present'} · ${timeOf(e.time) || 'by ' + whoLabel(e.editedBy)}</span>${e.by !== p.id && e.by ? `<small class="muted">marked by ${esc(whoLabel(e.by))}</small>` : ''}` : '<span class="att-state none">Not marked yet</span>';
+      const state = e ? `<span class="att-state ${e.status}">${icon(e.status === 'half' ? 'halfday' : 'check')}${e.status === 'half' ? tr('Half day') : tr('Present')} · ${timeOf(e.time) || whoLabel(e.editedBy)}</span>${e.by !== p.id && e.by ? `<small class="muted">${tr('marked by {name}', { name: esc(whoLabel(e.by)) })}</small>` : ''}` : `<span class="att-state none">${tr('Not marked yet')}</span>`;
       let actions = '';
-      if (!e) actions = `<button class="btn small ${isMe ? 'primary' : 'glass'}" data-act="att-mark" data-person="${p.id}" data-status="present">Present</button><button class="btn small glass" data-act="att-mark" data-person="${p.id}" data-status="half">Half day</button>`;
-      else if (e.status === 'present' && (isMe || e.by === S.me)) actions = `<button class="btn small ghost" data-act="att-half" data-id="${esc(e.id)}">Make half day</button>`;
+      if (!e) actions = `<button class="btn small ${isMe ? 'primary' : 'glass'}" data-act="att-mark" data-person="${p.id}" data-status="present">${tr('Present')}</button><button class="btn small glass" data-act="att-mark" data-person="${p.id}" data-status="half">${tr('Half day')}</button>`;
+      else if (e.status === 'present' && (isMe || e.by === S.me)) actions = `<button class="btn small ghost" data-act="att-half" data-id="${esc(e.id)}">${tr('Make half day')}</button>`;
       return `<div class="att-row${isMe ? ' me' : ''}"><span class="avatar sm" style="--c:${personColor(p.id)}">${esc(p.name[0])}</span>
-        <div class="grow"><b>${isMe ? 'You' : esc(p.name)}</b><div>${state}</div></div><div class="att-actions">${actions}</div></div>`;
+        <div class="grow"><b>${isMe ? tr('You') : esc(p.name)}</b><div>${state}</div></div><div class="att-actions">${actions}</div></div>`;
     };
     const order = [...ps.filter((p) => p.id === S.me), ...ps.filter((p) => p.id !== S.me)];
     return `<section class="card glass att-card ${me ? 'done' : 'todo'}">
-      <header class="card-head"><h3>Attendance</h3>${me ? '' : '<small class="muted">Not marked yet</small>'}</header>
-      ${(a.holidays || []).find((h) => h.date === td) ? `<p class="hol-banner">${icon('star')}Today is a holiday: <b>${esc(a.holidays.find((h) => h.date === td).name)}</b>. It won’t count as leave.</p>` : ''}
+      <header class="card-head"><h3>${tr('Attendance')}</h3>${me ? '' : `<small class="muted">${tr('Not marked yet')}</small>`}</header>
+      ${(a.holidays || []).find((h) => h.date === td) ? `<p class="hol-banner">${icon('star')}<span>${tr('Today is a holiday: {name}. It won’t count as leave.', { name: `<b>${esc(a.holidays.find((h) => h.date === td).name)}</b>` })}</span></p>` : ''}
       <div class="att-list">${order.map(row).join('')}</div>
-      <p class="muted small">Time is recorded automatically. Once marked, only HR or the admin can change it.</p>
-      <button class="btn ghost wide" data-go="attendance">${icon('calendar')}Attendance sheet</button>
+      <p class="muted small">${tr('Time is recorded automatically. Once marked, only HR or the admin can change it.')}</p>
+      <button class="btn ghost wide" data-go="attendance">${icon('calendar')}${tr('Attendance sheet')}</button>
     </section>`;
   }
 
@@ -1138,14 +1181,14 @@
           else if (ds === td) { cls = 'pending'; }
           else txt = '–';
         }
-        const tip = a ? `${a.status === 'half' ? 'Half day' : 'Present'}${a.time ? ' · ' + timeOf(a.time) : ''}${hol[ds] ? ' · worked on ' + hol[ds].name : ''}` : cls === 'hol' ? `Holiday: ${hol[ds].name}` : cls === 'off' ? 'Leave' : '';
+        const tip = a ? `${a.status === 'half' ? tr('Half day') : tr('Present')}${a.time ? ' · ' + timeOf(a.time) : ''}${hol[ds] ? ' · worked on ' + hol[ds].name : ''}` : cls === 'hol' ? `${tr('Holiday')}: ${hol[ds].name}` : cls === 'off' ? tr('Leave') : '';
         cells.push(`<td><button class="cell ${cls}${a && a.editedBy ? ' edited' : ''}" ${cls === 'future' || cls === 'na' ? 'disabled' : ''} data-act="att-cell" data-person="${p.id}" data-date="${ds}" title="${esc(tip)}" aria-label="${esc(p.name)} ${dShort(ds)} ${esc(tip || 'not marked')}">${txt}</button></td>`);
       }
       const leaves = Math.max(0, elapsed - HOL - P - H / 2);
       return `<tr><th class="name"><span class="dot" style="background:${personColor(p.id)}"></span>${esc(firstName(p.id))}</th>${cells.join('')}<td class="tot">${P}</td><td class="tot">${H}</td><td class="tot">${leaves}</td></tr>`;
     }).join('');
-    return `<div class="att-grid-wrap"><table class="att-grid${editable ? ' editable' : ''}"><thead><tr><th class="name">Name</th>${head.join('')}<th class="tot">P</th><th class="tot">½</th><th class="tot">Off</th></tr></thead><tbody>${rows}</tbody></table></div>
-      <ul class="legend inline att-legend"><li><i class="lg p"></i>Present</li><li><i class="lg h"></i>Half day</li><li><i class="lg off"></i>Leave (no entry)</li><li><i class="lg hol"></i>Holiday</li><li><i class="lg edited"></i>Changed by HR/admin</li></ul>${start && start > `${month}-01` && start <= `${month}-${pad(D)}` ? `<p class="muted small">Attendance is counted from ${dShort(start)}. Earlier days don’t count as leave.</p>` : ''}`;
+    return `<div class="att-grid-wrap"><table class="att-grid${editable ? ' editable' : ''}"><thead><tr><th class="name">${tr('Name')}</th>${head.join('')}<th class="tot">P</th><th class="tot">½</th><th class="tot">${tr('Off')}</th></tr></thead><tbody>${rows}</tbody></table></div>
+      <ul class="legend inline att-legend"><li><i class="lg p"></i>${tr('Present')}</li><li><i class="lg h"></i>${tr('Half day')}</li><li><i class="lg off"></i>${tr('Leave (no entry)')}</li><li><i class="lg hol"></i>${tr('Holiday')}</li><li><i class="lg edited"></i>${tr('Changed by HR/admin')}</li></ul>${start && start > `${month}-01` && start <= `${month}-${pad(D)}` ? `<p class="muted small">${tr('Attendance is counted from {date}. Earlier days don’t count as leave.', { date: dShort(start) })}</p>` : ''}`;
   }
 
   function monthStepper(act, m, label) {
@@ -1159,33 +1202,33 @@
   function viewAttendance() {
     const m = S.attMonth || monthOf(sToday());
     const a = S.att && S.att.month === m ? S.att : m === monthOf(sToday()) ? S.attNow : null;
-    if (!a) { if (!S.attLoading) { S.attLoading = true; loadAtt(m).then(render).catch((e) => { S.lastError = e.message; render(); }).finally(() => { S.attLoading = false; }); } return `<header class="page-head"><h1>Attendance</h1></header>` + loadingView(); }
+    if (!a) { if (!S.attLoading) { S.attLoading = true; loadAtt(m).then(render).catch((e) => { S.lastError = e.message; render(); }).finally(() => { S.attLoading = false; }); } return `<header class="page-head"><h1>${tr('Attendance')}</h1></header>` + loadingView(); }
     const ps = people().filter((p) => p.active || a.attendance.some((x) => x.person === p.id));
     const mine = a.attendance.filter((x) => x.person === S.me);
     const P = mine.filter((x) => x.status !== 'half').length, H = mine.filter((x) => x.status === 'half').length;
     const recent = [...a.attendance].sort((x, y) => (y.date + y.time).localeCompare(x.date + x.time)).slice(0, 12);
-    return `<header class="page-head"><div><p class="muted">Everyone</p><h1>Attendance</h1></div></header>
-      <div class="period glass"><span class="muted small">Your month: <b>${P}</b> present · <b>${H}</b> half day${H === 1 ? '' : 's'}</span>${monthStepper('att-month', m)}</div>
+    return `<header class="page-head"><div><p class="muted">${tr('Everyone')}</p><h1>${tr('Attendance')}</h1></div><div class="head-actions">${refreshButton()}</div></header>
+      <div class="period glass"><span class="muted small">${lang() === 'hi' ? tr('Your month: {p} present · {h} half days', { p: `<b>${P}</b>`, h: `<b>${H}</b>` }) : `Your month: <b>${P}</b> present · <b>${H}</b> half day${H === 1 ? '' : 's'}`}</span>${monthStepper('att-month', m)}</div>
       <section class="card glass">${attGrid(m, ps, a.attendance, { editable: false, start: a.attStart, holidays: a.holidays || [] })}</section>
-      ${(a.holidays || []).length ? `<section class="card glass"><h3>Holidays this month</h3><div class="list">${a.holidays.slice().sort((x, y) => x.date.localeCompare(y.date)).map(holLine).join('')}</div></section>` : ''}
-      <section class="card glass"><h3>Latest entries</h3><div class="list">${recent.map(attLine).join('') || '<p class="muted">No entries this month yet.</p>'}</div>
-        <p class="muted small">Entries can’t be edited here. Ask HR or the admin to correct a mistake.</p></section>`;
+      ${(a.holidays || []).length ? `<section class="card glass"><h3>${tr('Holidays this month')}</h3><div class="list">${a.holidays.slice().sort((x, y) => x.date.localeCompare(y.date)).map(holLine).join('')}</div></section>` : ''}
+      <section class="card glass"><h3>${tr('Latest entries')}</h3><div class="list">${recent.map(attLine).join('') || `<p class="muted">${tr('No entries this month yet.')}</p>`}</div>
+        <p class="muted small">${tr('Entries can’t be edited here. Ask HR or the admin to correct a mistake.')}</p></section>`;
   }
   function attLine(a) {
     return `<div class="att-line"><span class="att-state ${a.status}">${icon(a.status === 'half' ? 'halfday' : 'check')}</span>
-      <span class="grow"><b>${esc(personName(a.person))}</b><small class="muted">${dShort(a.date)}${a.time ? ' · ' + timeOf(a.time) : ''}${a.by && a.by !== a.person ? ' · marked by ' + esc(whoLabel(a.by)) : ''}${a.editedBy ? ' · changed by ' + esc(whoLabel(a.editedBy)) : ''}${a.note ? ' · ' + esc(a.note) : ''}</small></span>
-      <span class="muted small">${a.status === 'half' ? 'Half day' : 'Present'}</span></div>`;
+      <span class="grow"><b>${esc(personName(a.person))}</b><small class="muted">${dShort(a.date)}${a.time ? ' · ' + timeOf(a.time) : ''}${a.by && a.by !== a.person ? ' · ' + tr('marked by {name}', { name: esc(whoLabel(a.by)) }) : ''}${a.editedBy ? ' · ' + tr('changed by {name}', { name: esc(whoLabel(a.editedBy)) }) : ''}${a.note ? ' · ' + esc(a.note) : ''}</small></span>
+      <span class="muted small">${a.status === 'half' ? tr('Half day') : tr('Present')}</span></div>`;
   }
 
   function attCellSheet(person, date) {
     const editable = S.me === 'admin' || S.me === 'hr';
     const list = editable ? (S.hr ? S.hr.attendance : []) : (S.att && S.att.month === monthOf(date) ? S.att.attendance : S.attNow ? S.attNow.attendance : []);
     const a = list.find((x) => x.person === person && x.date === date && !x.deleted);
-    const info = a ? `<div class="kv"><span>${a.status === 'half' ? 'Half day' : 'Present'}</span><b>${a.time ? timeOf(a.time) : '—'}</b></div>
-      <p class="muted small">${a.by ? 'Marked by ' + esc(whoLabel(a.by)) : ''}${a.editedBy ? ` · changed by ${esc(whoLabel(a.editedBy))}${a.editedAt ? ' on ' + dShort(a.editedAt.slice(0, 10)) : ''}` : ''}${a.note ? ' · ' + esc(a.note) : ''}</p>`
-      : `<div class="kv"><span>No entry</span><b>${date < sToday() ? 'Counted as leave' : 'Not marked yet'}</b></div>`;
+    const info = a ? `<div class="kv"><span>${a.status === 'half' ? tr('Half day') : tr('Present')}</span><b>${a.time ? timeOf(a.time) : '—'}</b></div>
+      <p class="muted small">${a.by ? tr('Marked by {name}', { name: esc(whoLabel(a.by)) }) : ''}${a.editedBy ? ` · changed by ${esc(whoLabel(a.editedBy))}${a.editedAt ? ' on ' + dShort(a.editedAt.slice(0, 10)) : ''}` : ''}${a.note ? ' · ' + esc(a.note) : ''}</p>`
+      : `<div class="kv"><span>${tr('No entry')}</span><b>${date < sToday() ? tr('Counted as leave') : tr('Not marked yet')}</b></div>`;
     const status = a ? a.status : 'none';
-    openSheet(`<form class="entry"><div class="sheet-head"><button type="button" class="link" data-act="close-sheet">${editable ? 'Cancel' : 'Close'}</button><h2>${esc(firstName(person))} · ${dShort(date)}</h2><span></span></div>
+    openSheet(`<form class="entry"><div class="sheet-head"><button type="button" class="link" data-act="close-sheet">${editable ? 'Cancel' : tr('Close')}</button><h2>${esc(firstName(person))} · ${dShort(date)}</h2><span></span></div>
       ${info}
       ${editable ? `<div class="field"><label>Change to</label><div class="seg3" data-field="status">
           <button type="button" class="${status === 'present' ? 'on' : ''}" data-v="present">Present</button>
@@ -1193,7 +1236,7 @@
           <button type="button" class="${status === 'none' ? 'on' : ''}" data-v="none">Leave</button></div></div>
         <div class="field"><label for="anote">Reason <span class="opt">optional, saved in the log</span></label><input id="anote" class="input" maxlength="200" placeholder="e.g. forgot to mark, was on site"></div>
         <p class="form-error"></p><button class="btn primary big" type="submit">Save</button>`
-        : `<p class="muted small">Only HR or the admin can change attendance.</p>`}
+        : `<p class="muted small">${tr('Only HR or the admin can change attendance.')}</p>`}
     </form>`, {
       onOpen(root) {
         if (!editable) { $('form', root).addEventListener('submit', (e) => e.preventDefault()); return; }
@@ -1244,7 +1287,7 @@
     const body = S.hrTab === 'salary' ? hrSalary(hr, m, admin) : S.hrTab === 'setup' ? hrSetup(hr, m) : hrAttendance(hr, m);
     return `<header class="page-head"><div><p class="muted">${admin ? 'Admin' : 'HR'}</p><h1>HR</h1></div>
         <div class="head-actions no-print">${S.hrTab === 'salary' ? `<button class="btn glass small" data-act="csv-salary">${icon('download')}CSV</button><button class="btn glass small" data-act="print">${icon('print')}Print / PDF</button>` : ''}
-        ${!admin ? `${themeButton()}<button class="btn glass small" data-act="logout">${icon('logout')}Lock</button>` : ''}</div></header>
+        ${!admin ? `${refreshButton()}${themeButton()}<button class="btn glass small" data-act="logout">${icon('logout')}Lock</button>` : ''}</div></header>
       <div class="period glass no-print"><div class="seg${tabs.length} small">${tabs.map(([k, l]) => `<button class="${S.hrTab === k ? 'on' : ''}" data-act="hr-tab" data-v="${k}">${l}</button>`).join('')}</div>
         ${S.hrTab !== 'setup' ? monthStepper('hr-month', m) : ''}</div>
       ${body}`;
@@ -1412,7 +1455,7 @@
   }
 
   function holLine(h, removable) {
-    return `<div class="set-row"><span class="hol-ic">${icon('star')}</span><span class="grow"><b>${esc(h.name)}</b><small class="muted"> · ${dLong(h.date)} · ${h.kind === 'company' ? 'Company holiday' : 'Festival'}</small></span>
+    return `<div class="set-row"><span class="hol-ic">${icon('star')}</span><span class="grow"><b>${esc(h.name)}</b><small class="muted"> · ${dLong(h.date)} · ${h.kind === 'company' ? tr('Company holiday') : tr('Festival')}</small></span>
       ${removable ? `<button class="icon-btn sm" data-act="rm-hol" data-id="${esc(h.id)}" aria-label="Remove holiday">${icon('x')}</button>` : ''}</div>`;
   }
 
@@ -1477,7 +1520,7 @@
 
   /* ======================= render ======================= */
   const ADMIN_TABS = [['dashboard', 'Dashboard', 'chart'], ['reports', 'Reports', 'report'], ['ledger', 'Entries', 'list'], ['hr', 'HR', 'users'], ['settings', 'Settings', 'gear']];
-  const STAFF_TABS = [['home', 'Home', 'home'], ['attendance', 'Attendance', 'calendar'], ['history', 'Expenses', 'list']];
+  const STAFF_TABS = [['home', 'Home', 'home'], ['attendance', 'Attendance', 'calendar'], ['history', 'Expenses', 'list']]; // labels go through tr()
   const HR_TABS = [['hr', 'HR', 'users']];
 
   function render() {
@@ -1495,8 +1538,9 @@
       if (!tabs.some((t) => t[0] === S.route)) S.route = tabs[0][0];
       html = ({ home: viewHome, attendance: viewAttendance, history: viewHistory, dashboard: viewDashboard, reports: viewReports, ledger: viewLedger, hr: viewHR, settings: viewSettings })[S.route]();
       nav.hidden = isHR;
-      nav.innerHTML = `<div class="nav-inner glass">${tabs.map(([k, l, i]) => `<button class="${S.route === k ? 'on' : ''}" data-go="${k}" aria-label="${l}">${icon(i)}<span>${l}</span></button>`).join('')}
-        ${!isAdmin && !isHR ? `<button class="nav-add" data-act="add" data-type="expense" aria-label="Add expense">${icon('plus')}</button>` : ''}</div>`;
+      nav.innerHTML = `<div class="nav-inner glass">${tabs.map(([k, l, i]) => `<button class="${S.route === k ? 'on' : ''}" data-go="${k}" aria-label="${tr(l)}">${icon(i)}<span>${tr(l)}</span></button>`).join('')}
+        ${isAdmin ? `<button class="nav-refresh" data-act="refresh" aria-label="Refresh" title="Refresh">${icon('sync', S.refreshing ? 'spin' : '')}<span>Refresh</span></button>` : ''}
+        ${!isAdmin && !isHR ? `<button class="nav-add" data-act="add" data-type="expense" aria-label="${tr('Add expense')}">${icon('plus')}</button>` : ''}</div>`;
     }
     const y = window.scrollY;
     const anim = S._lastView !== S.me + S.route; S._lastView = S.me + S.route;
@@ -1513,7 +1557,7 @@
     if (!n && !S.lastError && S.online) { el.hidden = true; return; }
     el.hidden = false;
     el.className = 'sync-chip glass' + (S.lastError ? ' warn' : '');
-    el.innerHTML = !S.online ? `${icon('sync')}Offline${n ? ` · ${n} waiting` : ''}` : S.syncing ? `${icon('sync', 'spin')}Syncing ${n}…` : S.lastError ? `${icon('alert')}${n ? n + ' not synced · ' : ''}Tap to retry` : `${icon('sync')}${n} waiting to sync`;
+    el.innerHTML = !S.online ? `${icon('sync')}${tr('Offline')}${n ? ` · ${tr('{n} waiting', { n })}` : ''}` : S.syncing ? `${icon('sync', 'spin')}${tr('Syncing {n}…', { n })}` : S.lastError ? `${icon('alert')}${n ? tr('{n} not synced', { n }) + ' · ' : ''}${tr('Tap to retry')}` : `${icon('sync')}${tr('{n} waiting to sync', { n })}`;
   }
 
   async function refreshData() {
@@ -1533,14 +1577,14 @@
     switch (act) {
       case 'close-sheet': if (a.closest('#sheet')) closeSheet(); break;
       case 'pick-me':
-        S.me = a.dataset.id; store.set('me', S.me);
+        S.me = a.dataset.id; store.set('me', S.me); LANG_ME = S.me;
         S.route = S.me === 'admin' ? 'dashboard' : S.me === 'hr' ? 'hr' : 'home';
         render();
         refreshData().then(render).catch((err) => { S.lastError = err.message; render(); });
         break;
       case 'switch-user':
-        if (S.outbox.length && !confirm('Some entries are still waiting to sync. Switch anyway? They will sync later.')) return;
-        S.me = null; store.del('me'); S.mine = []; store.set('mine', []); S.admin = null; S.hr = null; S.attNow = null; store.del('attNow'); S.token = null; store.del('token'); render(); break;
+        if (S.outbox.length && !confirm(tr('Some entries are still waiting to sync. Switch anyway? They will sync later.'))) return;
+        S.me = null; LANG_ME = null; store.del('me'); S.mine = []; store.set('mine', []); S.admin = null; S.hr = null; S.attNow = null; store.del('attNow'); S.token = null; store.del('token'); render(); break;
       case 'add': entryForm({ type: a.dataset.type, person: a.dataset.person }); break;
       case 'edit': {
         const pool = S.me === 'admin' ? adminTxns() : myTxns();
@@ -1601,7 +1645,10 @@
       }
       case 'hr-pin': hrPinSheet(); break;
       case 'theme-set': setTheme(a.dataset.v); break;
-      case 'theme-cycle': { const i = THEMES.findIndex((x) => x[0] === S.theme); setTheme(THEMES[(i + 1) % THEMES.length][0]); toast(`Theme: ${THEMES[(i + 1) % THEMES.length][1]}`); break; }
+      case 'theme-cycle': { const i = THEMES.findIndex((x) => x[0] === S.theme); setTheme(THEMES[(i + 1) % THEMES.length][0]); toast(tr('Theme: {name}', { name: tr(THEMES[(i + 1) % THEMES.length][1]) })); break; }
+      case 'lang-toggle': setLang(lang() === 'hi' ? 'en' : 'hi'); break;
+      case 'lang-set': setLang(a.dataset.v); break;
+      case 'refresh': doRefresh(); break;
       case 'add-hol': holidaySheet(); break;
       case 'rm-hol':
         if (!confirm('Remove this holiday? That day will count as leave for anyone who didn’t mark attendance.')) return;
@@ -1698,12 +1745,17 @@
   window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('#sheet').hidden) closeSheet(); });
   let rT; window.addEventListener('resize', () => { clearTimeout(rT); rT = setTimeout(drawDashboardCharts, 150); });
   setInterval(() => { if (S.outbox.length && navigator.onLine) flush().then(refreshData).then(render).catch(() => {}); }, 30000);
+  // keep everyone's changes coming in without restarting the app
+  setInterval(() => { if (document.visibilityState === 'visible' && navigator.onLine && S.me && !busy()) doRefresh({ quiet: true }); }, 60000);
+  let lastFocusRefresh = 0;
+  window.addEventListener('focus', () => { if (Date.now() - lastFocusRefresh > 15000 && S.me && navigator.onLine) { lastFocusRefresh = Date.now(); doRefresh({ quiet: true }); } });
 
   /* ======================= boot ======================= */
   matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { applyTheme(); if (S.route === 'dashboard') drawDashboardCharts(); });
 
   async function boot() {
     applyTheme();
+    document.documentElement.lang = lang();
     const h = location.hash.slice(1);
     if (h) S.route = h;
     render();
@@ -1714,7 +1766,7 @@
       await flush();
       await refreshData();
     } catch (e) {
-      S.lastError = navigator.onLine ? e.message : 'You’re offline. Entries you add will sync later.';
+      S.lastError = navigator.onLine ? e.message : tr('You’re offline. Entries you add will sync later.');
     }
     render();
   }
