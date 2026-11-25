@@ -31,9 +31,13 @@
         const p = e.touches ? e.touches[0] : e;
         showTip(el.getAttribute('data-tip'), p.clientX, p.clientY);
         root.querySelectorAll('.is-hot').forEach((h) => h.classList.remove('is-hot'));
+        // light up what this mark belongs to: a whole column (data-col) or one series/slice (data-key)
+        const col = el.getAttribute('data-col');
         const key = el.getAttribute('data-key');
-        if (key) root.querySelectorAll(`[data-key="${key}"]`).forEach((h) => h.classList.add('is-hot'));
-        root.classList.add('has-hot');
+        const sel = col != null ? `[data-col="${col}"]` : key ? `[data-key="${key}"]` : null;
+        let lit = 0;
+        if (sel) root.querySelectorAll(sel).forEach((h) => { if (!h.classList.contains('hit')) { h.classList.add('is-hot'); lit++; } });
+        root.classList.toggle('has-hot', lit > 0); // nothing to light (an empty week): don't dim the rest
       };
       el.addEventListener('pointermove', show);
       el.addEventListener('pointerdown', show);
@@ -105,11 +109,11 @@
         const hh = Math.max(0, h - (pi > 0 ? 2 : 0));
         y -= h;
         const rr = top ? Math.min(4, hh) : 0;
-        svg += `<path class="bar" data-key="${esc(se.key)}" fill="${se.color}" d="${roundTop(x, y + (pi > 0 ? 0 : 0), bw, hh, rr)}"
+        svg += `<path class="bar" data-col="${gi}" data-key="${esc(se.key)}" fill="${se.color}" d="${roundTop(x, y + (pi > 0 ? 0 : 0), bw, hh, rr)}"
           data-tip="<b>${esc(g.label)}</b>${g.sub ? ' · ' + esc(g.sub) : ''}<br>${esc(se.label)}: ${esc(opts.fmt(v))}<br><span class=muted>Total ${esc(opts.fmt(totals[gi]))}</span>"/>`;
       });
       // hit target over full column for empty/short bars
-      svg += `<rect x="${padL + step * gi}" y="${padT}" width="${step}" height="${ih}" fill="transparent"
+      svg += `<rect x="${padL + step * gi}" y="${padT}" width="${step}" height="${ih}" fill="transparent" data-col="${gi}"
         data-tip="<b>${esc(g.label)}</b>${g.sub ? ' · ' + esc(g.sub) : ''}<br>${series.map((se) => `${esc(se.label)}: ${esc(opts.fmt(g.values[se.key] || 0))}`).join('<br>')}<br><span class=muted>Total ${esc(opts.fmt(totals[gi]))}</span>" class="hit"/>`;
       const showLabel = groups.length <= 12 || gi % Math.ceil(groups.length / 12) === 0;
       if (showLabel) svg += `<text x="${padL + step * gi + step / 2}" y="${H - 12}" text-anchor="middle" class="axis">${esc(g.label)}</text>`;
