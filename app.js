@@ -820,7 +820,7 @@
           <thead><tr><th>Date</th><th>Person</th><th>Type</th><th>Category</th><th>Note</th><th>Mode</th><th class="num">Amount</th></tr></thead>
           <tbody>${[...sm.rows].sort((a, b) => a.date.localeCompare(b.date) || String(a.createdAt).localeCompare(String(b.createdAt))).map((t) => `<tr${t.flag ? ' class="flagged"' : ''}><td>${dShort(t.date)}</td><td>${esc(firstName(t.person))}${t.type === 'transfer' ? ' → ' + esc(firstName(t.to)) : ''}</td><td>${t.type === 'expense' ? 'Expense' : t.type === 'received' ? 'Given' : 'Transfer'}</td><td>${t.type === 'expense' ? esc(catOf(t.category).name) : '—'}</td><td>${esc(t.note)}</td><td>${esc(t.mode || '—')}</td><td class="num">${money(paise(t.amount))}</td></tr>`).join('') || '<tr><td colspan="7" class="muted">No entries.</td></tr>'}</tbody>
         </table></div>
-        <p class="muted small print-only">Generated ${new Date().toLocaleString('en-IN')} · Sunpour Expenses</p>
+        <p class="muted small print-only">Generated ${new Date().toLocaleString('en-IN')} · Sunpour Management</p>
       </article>`;
   }
   function dayTable(sm, r, ps) {

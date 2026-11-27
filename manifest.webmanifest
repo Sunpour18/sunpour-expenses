@@ -1,7 +1,7 @@
 {
-  "name": "Sunpour Expenses",
-  "short_name": "Expenses",
-  "description": "Office expense and cash advance tracker for Sunpour staff",
+  "name": "Sunpour Management",
+  "short_name": "Sunpour Management",
+  "description": "Sunpour office app: expenses, attendance, salary, solar quotations and purchase orders",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
