@@ -92,6 +92,12 @@ button:focus-visible,summary:focus-visible,.sw input:focus-visible+i{outline:2px
 .mr .ed-dot{width:6px;height:6px;border-radius:50%;background:var(--accent);display:inline-block}
 .mx{display:none;padding:8px 12px 12px 52px;border-bottom:1px solid var(--line2);background:var(--panel2);grid-template-columns:1fr 1fr;gap:8px}
 .mx.open{display:grid}
+@media (max-width:600px){ /* phone: item name gets the whole first line, the rest sits compactly under it */
+.mr{grid-template-columns:36px 52px 52px 40px 1fr 32px;grid-template-areas:"sw nm nm nm nm nm" ". q u v . x";gap:2px 4px;padding:8px 8px 6px}
+.mr .sw{grid-area:sw}.mr input.nm{grid-area:nm;font-size:13px;font-weight:500;padding:4px 6px}
+.mr input.q{grid-area:q;text-align:left}.mr input.u{grid-area:u}.mr .vb{grid-area:v;justify-self:start}.mr [data-x]{grid-area:x;justify-self:end}
+.mr input.q,.mr input.u{padding:2px 6px;font-size:12px;color:var(--text2);background:var(--panel2)}
+.mx{padding:8px 8px 12px 44px}}
 .hero{background:var(--panel);border-radius:16px;box-shadow:var(--shadow);padding:20px 20px 16px;text-align:center;margin-bottom:24px}
 .hero small{color:var(--text3);font-weight:500}
 .hero .big{display:flex;align-items:baseline;justify-content:center;gap:8px;margin:0 0 8px}
