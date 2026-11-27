@@ -2,7 +2,7 @@
    Mirrors the Apps Script API, keeps data in this browser's localStorage. */
 (function () {
   const KEY = 'spx.mockdb';
-  const PEOPLE = [{ id: 'p1', name: 'Sandeep Swami', active: true, joinDate: '' }, { id: 'p2', name: 'Ravi Goyal', active: true, joinDate: '' }];
+  const PEOPLE = [{ id: 'p1', name: 'Sandeep Swami', active: true, joinDate: '', tools: true }, { id: 'p2', name: 'Ravi Goyal', active: true, joinDate: '', tools: false }];
   const RULES = [{ person: 'p1', from: '2026-08', base: 15000, paidLeaves: 4, autoOvertime: true, note: 'Unused paid leaves are paid as overtime' }, { person: 'p2', from: '2026-08', base: 20000, paidLeaves: 4, autoOvertime: false, note: 'Fixed salary' }];
   const CATS = [['petrol', 'Petrol', 'fuel'], ['tea', 'Tea & snacks', 'cup'], ['milk', 'Milk', 'milk'], ['water', 'Water', 'drop'], ['grocery', 'Grocery', 'basket'], ['meals', 'Meals', 'meal'], ['supplies', 'Office supplies', 'box'], ['maintenance', 'Repairs & cleaning', 'wrench'], ['stationery', 'Stationery & docs', 'pen'], ['travel', 'Travel & parking', 'car'], ['bills', 'Bills & utilities', 'bolt'], ['site', 'Site work', 'sun'], ['courier', 'Courier', 'parcel'], ['misc', 'Miscellaneous', 'dots']]
     .map(([id, name, icon], i) => ({ id, name, icon, active: true, order: i }));
@@ -69,7 +69,7 @@
         if (!admin) fail('ADMIN_LOGIN_REQUIRED');
         const p = req.person; const id = p.id || 'p' + Date.now().toString(36);
         const i = db.people.findIndex((x) => x.id === id);
-        const v = { id, name: String(p.name).trim(), active: p.active !== false, joinDate: p.joinDate || '' };
+        const v = { id, name: String(p.name).trim(), active: p.active !== false, joinDate: p.joinDate || '', tools: p.tools === true };
         if (!v.name) fail('Name is required');
         if (i >= 0) db.people[i] = v; else db.people.push(v);
         save(); return { ok: true, people: db.people };

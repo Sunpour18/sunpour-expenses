@@ -120,6 +120,7 @@
     moon: 'M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z',
     monitor: 'M3.5 5h17v11h-17zM8.5 20h7M12 16v4',
     halfday: 'M12 3.5a8.5 8.5 0 1 0 0 17zM12 3.5a8.5 8.5 0 0 1 0 17',
+    quote: 'M7 3.5h7l4 4v12a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1v-15a1 1 0 0 1 1-1zM14 3.5V8h4M9 12.5h6M9 16h4',
     logout: 'M14 4.5h4.5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H14M10 8l-4 4 4 4M6 12h10',
   };
   const icon = (n, cls = '') => `<svg class="ic ${cls}" viewBox="0 0 24 24" aria-hidden="true"><path d="${ICONS[n] || ICONS.dots}"/></svg>`;
@@ -890,8 +891,9 @@
       <div class="grid-2">
         <section class="card glass"><header class="card-head"><h3>Staff</h3><button class="btn small glass" data-act="add-person">${icon('plus')}Add</button></header>
           <div class="list">${people().map((p) => `<div class="set-row"><span class="avatar sm" style="--c:${personColor(p.id)}">${esc(p.name[0])}</span><span class="grow">${esc(p.name)}${p.active ? '' : ' <span class="pill">Hidden</span>'}</span>
+            <label class="switch" title="Quote &amp; PO access"><input type="checkbox" role="switch" data-act-change="tools-access" data-id="${p.id}" ${p.tools ? 'checked' : ''} aria-label="Quote and PO access for ${esc(p.name)}"><span>Quote &amp; PO</span></label>
             <button class="btn small ghost" data-act="edit-person" data-id="${p.id}">Edit</button></div>`).join('')}</div>
-          <p class="muted small">Hidden staff can’t add entries, but their history stays in reports.</p></section>
+          <p class="muted small">Hidden staff can’t add entries, but their history stays in reports. <b>Quote &amp; PO</b> lets that person make solar quotations and purchase orders on their phone.</p></section>
         <section class="card glass"><header class="card-head"><h3>Categories</h3><button class="btn small glass" data-act="add-cat">${icon('plus')}Add</button></header>
           <div class="list cats-list">${cats().map((c) => `<div class="set-row"><span class="cat-ic sm" style="--c:${catColor(c.id)}">${icon(c.icon)}</span><span class="grow">${esc(c.name)}${c.active ? '' : ' <span class="pill">Hidden</span>'}</span>
             <button class="btn small ghost" data-act="edit-cat" data-id="${c.id}">Edit</button></div>`).join('')}</div></section>
@@ -911,6 +913,19 @@
         <section class="card glass"><h3>Change log</h3>
           <div class="audit">${audit.map((a) => `<div class="audit-row"><span class="muted">${esc(new Date(a.time).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }))}</span><b>${esc(a.who === 'admin' ? 'Admin' : a.who ? firstName(a.who) : '')}</b> ${esc(a.action)}<small>${esc(String(a.details).slice(0, 120))}</small></div>`).join('') || '<p class="muted">No changes yet.</p>'}</div></section>
       </div>`;
+  }
+
+  /* ---- Quote & PO: the solar quotation builder and purchase order, as full pages in tools/ ---- */
+  const canTools = () => S.me === 'admin' || !!(people().find((p) => p.id === S.me) || {}).tools;
+  function viewTools() {
+    return `<header class="page-head"><div><p class="muted">${esc(S.me === 'admin' ? 'Admin' : personName(S.me))}</p><h1>${tr('Quote & PO')}</h1></div></header>
+      <div class="tool-list">
+        <a class="glass tool-card" href="tools/quote.html"><span class="tool-ic" style="--c:var(--s2)">${icon('sun')}</span>
+          <span class="grow"><b>${tr('Solar quotation')}</b><small>${tr('Price a rooftop plant from its kW size and share the PDF.')}</small></span>${icon('right')}</a>
+        <a class="glass tool-card" href="tools/po.html"><span class="tool-ic" style="--c:var(--s1)">${icon('box')}</span>
+          <span class="grow"><b>${tr('Purchase order')}</b><small>${tr('Material list for both vendors, and the delivery checklist.')}</small></span>${icon('right')}</a>
+      </div>
+      <p class="muted small tool-note">${tr('Quotes and POs you save stay on this phone. The PDF needs internet.')}</p>`;
   }
 
   function loadingView() {
@@ -992,12 +1007,13 @@
       <div class="field"><label for="pname">Full name</label><input id="pname" class="input" value="${esc(p.name)}" maxlength="60" required></div>
       <div class="field"><label for="pjoin">Joining date <span class="opt">optional, used for the first month's salary</span></label><input id="pjoin" class="input" type="date" value="${esc(p.joinDate || '')}"></div>
       ${id ? `<label class="toggle big"><input type="checkbox" id="pactive" ${p.active ? 'checked' : ''}><span>Active (can add entries and mark attendance)</span></label>` : ''}
+      <label class="toggle big"><input type="checkbox" id="ptools" ${p.tools ? 'checked' : ''}><span>Quote &amp; PO (solar quotations and purchase orders)</span></label>
       <p class="form-error"></p><button class="btn primary big" type="submit">Save</button></form>`, {
       onOpen(root) {
         $('form', root).addEventListener('submit', async (e) => {
           e.preventDefault();
           try {
-            const r = await api('savePerson', { person: { id, name: $('#pname', root).value, joinDate: $('#pjoin', root).value, active: id ? $('#pactive', root).checked : true } });
+            const r = await api('savePerson', { person: { id, name: $('#pname', root).value, joinDate: $('#pjoin', root).value, active: id ? $('#pactive', root).checked : true, tools: $('#ptools', root).checked } });
             S.admin.people = r.people; S.config.people = r.people; store.set('config', S.config);
             closeSheet(); toast('Saved'); render();
           } catch (err) { $('.form-error', root).textContent = err.message; }
@@ -1519,7 +1535,7 @@
   }
 
   /* ======================= render ======================= */
-  const ADMIN_TABS = [['dashboard', 'Dashboard', 'chart'], ['reports', 'Reports', 'report'], ['ledger', 'Entries', 'list'], ['hr', 'HR', 'users'], ['settings', 'Settings', 'gear']];
+  const ADMIN_TABS = [['dashboard', 'Dashboard', 'chart'], ['reports', 'Reports', 'report'], ['ledger', 'Entries', 'list'], ['hr', 'HR', 'users'], ['tools', 'Quotes', 'quote'], ['settings', 'Settings', 'gear']];
   const STAFF_TABS = [['home', 'Home', 'home'], ['attendance', 'Attendance', 'calendar'], ['history', 'Expenses', 'list']]; // labels go through tr()
   const HR_TABS = [['hr', 'HR', 'users']];
 
@@ -1534,9 +1550,9 @@
     else if (isAdmin && !S.token) { html = viewAdminLogin(); nav.hidden = true; }
     else if (isHR && !S.token) { html = viewHRLogin(); nav.hidden = true; }
     else {
-      const tabs = isAdmin ? ADMIN_TABS : isHR ? HR_TABS : STAFF_TABS;
+      const tabs = isAdmin ? ADMIN_TABS : isHR ? HR_TABS : canTools() ? [...STAFF_TABS, ['tools', 'Quotes', 'quote']] : STAFF_TABS;
       if (!tabs.some((t) => t[0] === S.route)) S.route = tabs[0][0];
-      html = ({ home: viewHome, attendance: viewAttendance, history: viewHistory, dashboard: viewDashboard, reports: viewReports, ledger: viewLedger, hr: viewHR, settings: viewSettings })[S.route]();
+      html = ({ home: viewHome, attendance: viewAttendance, history: viewHistory, dashboard: viewDashboard, reports: viewReports, ledger: viewLedger, hr: viewHR, tools: viewTools, settings: viewSettings })[S.route]();
       nav.hidden = isHR;
       nav.innerHTML = `<div class="nav-inner glass">${tabs.map(([k, l, i]) => `<button class="${S.route === k ? 'on' : ''}" data-go="${k}" aria-label="${tr(l)}">${icon(i)}<span>${tr(l)}</span></button>`).join('')}
         ${isAdmin ? `<button class="nav-refresh" data-act="refresh" aria-label="Refresh" title="Refresh">${icon('sync', S.refreshing ? 'spin' : '')}<span>Refresh</span></button>` : ''}
@@ -1703,6 +1719,20 @@
     const st = e.target.closest('[data-act-change="att-start"]');
     if (st) {
       try { const r = await api('setAttStart', { date: st.value }); S.hr.attStart = r.attStart; toast(`Attendance counted from ${dShort(r.attStart)}`); render(); } catch (err) { toast(err.message, 'warn'); }
+      return;
+    }
+    const ta = e.target.closest('[data-act-change="tools-access"]');
+    if (ta) {
+      const p = people().find((x) => x.id === ta.dataset.id);
+      if (!p) return;
+      ta.disabled = true;
+      try {
+        const r = await api('savePerson', { person: { ...p, tools: ta.checked } });
+        S.admin.people = r.people; S.config.people = r.people; store.set('config', S.config);
+        if (!!(r.people.find((x) => x.id === p.id) || {}).tools !== ta.checked) throw new Error('The server needs updating before this switch works.');
+        toast(ta.checked ? `${firstName(p.id)} can now make quotes and POs` : `Quote & PO turned off for ${firstName(p.id)}`);
+      } catch (err) { ta.checked = !ta.checked; toast(err.message, 'warn'); }
+      ta.disabled = false; render();
       return;
     }
     const tg = e.target.closest('[data-act-change="hr-salary"]');
